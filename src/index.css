@@ -1,0 +1,7 @@
+html, body, main, #root {
+  background-color: rgb(243, 246, 249);
+}
+
+main {
+  padding: 16px;
+}
