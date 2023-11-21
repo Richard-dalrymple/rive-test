@@ -1,50 +1,100 @@
-import { useRive, Layout, Fit, Alignment } from '@rive-app/react-canvas';
+import { useRive, Layout, Fit, Alignment, FileAsset, decodeImage } from '@rive-app/react-canvas';
 import Card from '@mui/material/Card';
 import CardActions from '@mui/material/CardActions';
 import CardContent from '@mui/material/CardContent';
 
 import Button from '@mui/material/Button';
-import { useState } from 'react';
+
+const RIVE_TEXT_RUN_LABEL = 'teamRun';
+
+type Team = 'DOLPHINS' | 'TEXANS' | 'FALCONS'
+
+const TEAM_MAPPING = {
+  'DOLPHINS': 'MIAMI DOLPHINS',
+  'TEXANS': 'HOUSTON TEXANS',
+  'FALCONS': 'ATLANTA FALCONS',
+}
 
 export const SimpleRiveComponent = () => {
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
-
   const { rive, RiveComponent } = useRive({
-    src: 'https://cdn.rive.app/animations/vehicles.riv',
-    stateMachines: "bumpy",
+    src: '/new_file.riv',
     autoplay: false,
     layout: new Layout({
       fit: Fit.FitWidth,
       alignment: Alignment.Center
     }),
-    onStateChange: (event) => {
-      console.log(event);
+    assetLoader:(asset: FileAsset, bytes: Uint8Array) => {
+      console.log(
+        "Tell our asset importer if we are going to load the asset contents",
+        {
+          name: asset.name,
+          fileExtension: asset.fileExtension,
+          cdnUuid: asset.cdnUuid,
+          isFont: asset.isFont,
+          isImage: asset.isImage,
+          bytes
+        }
+      );
+
+      if (asset.name === 'teamLogo.png') {
+        fetch("/dolphins.png").then(async (res) => {
+          console.log("doing this");
+          const image = await decodeImage(new Uint8Array(await res.arrayBuffer()));
+
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (asset as any).setRenderImage(image);
+
+          // You could maintain a reference and update the image dynamically at any time.
+          // But be sure to call unref to release any references when no longer needed.
+          // This allows the engine to clean it up when it is not used by any more animations.
+          image.unref();
+        });
+
+        return true;
+      }
+
+      return false;
+    },
+    onLoad: () => {
+      if (!rive) {
+        return;
+      }
+
+      // Prevent a blurry canvas by using the device pixel ratio
+      rive.resizeDrawingSurfaceToCanvas();
     }
   });
 
-  const onTogglePlayPause = () => {
+  const onTogglePlay = (team: Team) => {
     if (!rive) {
-      return
+      return;
     }
 
-    if (rive.isPlaying) {
-      rive.pause();
-      setIsPlaying(false);
-    } else {
-      rive.play();
-      setIsPlaying(true);
-    }
+    const teamLabel = TEAM_MAPPING[team];
+    // const asset = `/${team}.png`;
+
+    rive.reset();
+    rive.setTextRunValue(RIVE_TEXT_RUN_LABEL, teamLabel)
+    rive.play();
   }
 
   return (
-    <Card sx={{ width: 380 }}>
-      <CardContent sx={{ padding: 0, height: 215 }}>
+    <Card sx={{ width: 375 }}>
+      <CardContent sx={{ padding: 0, height: 120 }}>
         <RiveComponent />
       </CardContent>
 
-      <CardActions sx={{ padding: '16px', justifyContent: 'center' }}>
-        <Button variant="contained" disabled={!rive} onClick={onTogglePlayPause}>
-          {isPlaying ? 'Pause' : 'Play'}
+      <CardActions sx={{ padding: '16px', justifyContent: 'space-between' }}>
+        <Button variant="contained" disabled={!rive} onClick={() => onTogglePlay('DOLPHINS')}>
+          Dolphins
+        </Button>
+
+        <Button variant="contained" disabled={!rive} onClick={() => onTogglePlay('TEXANS')}>
+          Texans
+        </Button>
+
+        <Button variant="contained" disabled={!rive} onClick={() => onTogglePlay('FALCONS')}>
+          Falcons
         </Button>
       </CardActions>
     </Card>
